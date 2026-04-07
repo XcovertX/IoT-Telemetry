@@ -35,6 +35,7 @@ export const TelemetryProcessorLive = Layer.succeed(
 
         // log the processed telemetry data
         yield* Console.log(
+        "[INFO] " +
           JSON.stringify({
             level: "info",
             msg: "processed telemetry",
