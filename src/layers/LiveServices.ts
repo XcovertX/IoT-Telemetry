@@ -7,25 +7,24 @@ import { TelemetryProcessorLive } from "../services/TelemetryProcessor.js"
 import { DeviceStatusRepositoryLive } from "../services/DeviceStatusRepository.js"
 import { ApiServerLive } from "../services/ApiServer.js"
 import { AzurePublisherMockLive } from "../services/AzurePublisher.js"
+import { DeviceCommandServiceMockLive } from "../services/DeviceCommandService.js"
 
 /**
- * Shared singletons.
+ * Shared singleton-style layers
  */
 const SharedAppConfigLive = AppConfigLive
 const SharedTelemetryRepositoryLive = TelemetryRepositoryLive
 const SharedAzurePublisherLive = AzurePublisherMockLive
+const SharedDeviceCommandServiceLive = DeviceCommandServiceMockLive
 
 /**
- * Alert service depends on AppConfig.
+ * Services that depend on config
  */
 const SharedAlertServiceLive = Layer.provide(
   AlertServiceLive,
   SharedAppConfigLive
 )
 
-/**
- * DeviceStatusRepository depends on AppConfig.
- */
 const SharedDeviceStatusRepositoryLive = Layer.provide(
   DeviceStatusRepositoryLive,
   SharedAppConfigLive
@@ -50,11 +49,13 @@ const WiredTelemetryProcessorLive = Layer.provide(
  * ApiServer depends on:
  * - DeviceStatusRepository
  * - TelemetryRepository
+ * - DeviceCommandService
  * - AppConfig
  */
 const ApiDepsLive = Layer.mergeAll(
   SharedDeviceStatusRepositoryLive,
   SharedTelemetryRepositoryLive,
+  SharedDeviceCommandServiceLive,
   SharedAppConfigLive
 )
 
@@ -70,6 +71,7 @@ export const LiveServices = Layer.mergeAll(
   SharedDeviceStatusRepositoryLive,
   SharedAlertServiceLive,
   SharedAzurePublisherLive,
+  SharedDeviceCommandServiceLive,
   WiredTelemetryProcessorLive,
   WiredApiServerLive
 )
