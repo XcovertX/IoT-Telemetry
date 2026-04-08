@@ -3,6 +3,7 @@ import { DeviceSimulatorLive } from "../services/DeviceSimulator.js"
 import { TelemetryProcessorLive } from "../services/TelemetryProcessor.js"
 import { TelemetryRepositoryLive } from "../services/TelemetryRepository.js"
 import { AlertServiceLive } from "../services/AlertService.js"
+import { DeviceStatusRepositoryLive } from "../services/DeviceStatusRepository.js"
 
 // First, build the dependencies TelemetryProcessor needs
 const ProcessorDepsLive = Layer.mergeAll(
@@ -20,5 +21,6 @@ const WiredTelemetryProcessorLive = Layer.provide(
 export const LiveServices = Layer.mergeAll(
   DeviceSimulatorLive,
   ProcessorDepsLive,
-  WiredTelemetryProcessorLive
+  WiredTelemetryProcessorLive,
+  DeviceStatusRepositoryLive
 )
