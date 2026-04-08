@@ -1,8 +1,9 @@
 import { Console, Effect, Schedule, Duration } from "effect"
 import { DeviceSimulator } from "./services/DeviceSimulator.js"
 import { TelemetryProcessor } from "./services/TelemetryProcessor.js"
-import { LiveServices } from "./layers/LiveServices.js"
+import { ApiServer } from "./services/ApiServer.js"
 import { DeviceStatusRepository } from "./services/DeviceStatusRepository.js"
+import { LiveServices } from "./layers/LiveServices.js"
 import {
   DeviceOfflineError,
   TelemetryValidationError
@@ -63,12 +64,19 @@ const summaryLoop = logFleetSummary.pipe(
   Effect.repeat(Schedule.spaced(Duration.seconds(10)))
 )
 
+// Start HTTP API server
+const apiLoop = Effect.gen(function* () {
+  const api = yield* ApiServer
+  yield* Console.log("Starting API server on http://localhost:3000")
+  yield* api.start()
+})
+
 const program = Effect.gen(function* () {
   yield* Console.log("Starting Telemetry + Lifecycleg system...")
 
   // Run polling and summary loops concurrently
   yield* Effect.all(
-    [pollingLoop, summaryLoop],
+    [pollingLoop, summaryLoop, apiLoop],
     { concurrency: "unbounded" }
   )
 }).pipe(

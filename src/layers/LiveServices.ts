@@ -4,6 +4,7 @@ import { TelemetryProcessorLive } from "../services/TelemetryProcessor.js"
 import { TelemetryRepositoryLive } from "../services/TelemetryRepository.js"
 import { AlertServiceLive } from "../services/AlertService.js"
 import { DeviceStatusRepositoryLive } from "../services/DeviceStatusRepository.js"
+import { ApiServerLive } from "../services/ApiServer.js"
 
 // First, build the dependencies TelemetryProcessor needs
 const ProcessorDepsLive = Layer.mergeAll(
@@ -17,10 +18,24 @@ const WiredTelemetryProcessorLive = Layer.provide(
   ProcessorDepsLive
 )
 
-// Finally merge the independent services into the app layer
+
+// Dependencies required to build the API server
+const ApiDepsLive = Layer.mergeAll(
+  TelemetryRepositoryLive,
+  DeviceStatusRepositoryLive
+)
+
+// Wire API dependencies into the API layer
+const WiredApiServerLive = Layer.provide(
+  ApiServerLive,
+  ApiDepsLive
+)
+
+// Merge the independent services into the app layer
 export const LiveServices = Layer.mergeAll(
   DeviceSimulatorLive,
   ProcessorDepsLive,
   WiredTelemetryProcessorLive,
-  DeviceStatusRepositoryLive
+  DeviceStatusRepositoryLive,
+WiredApiServerLive
 )
