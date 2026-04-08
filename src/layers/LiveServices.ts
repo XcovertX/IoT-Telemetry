@@ -1,52 +1,71 @@
 import { Layer } from "effect"
+import { AppConfigLive } from "../config/AppConfig.js"
 import { DeviceSimulatorLive } from "../services/DeviceSimulator.js"
-import { TelemetryProcessorLive } from "../services/TelemetryProcessor.js"
 import { TelemetryRepositoryLive } from "../services/TelemetryRepository.js"
 import { AlertServiceLive } from "../services/AlertService.js"
+import { TelemetryProcessorLive } from "../services/TelemetryProcessor.js"
 import { DeviceStatusRepositoryLive } from "../services/DeviceStatusRepository.js"
 import { ApiServerLive } from "../services/ApiServer.js"
 import { AzurePublisherMockLive } from "../services/AzurePublisher.js"
 
 /**
- * Shared singleton-style infrastructure layers.
- *
- * Important:
- * Reuse these exact layer values so Effect can memoize them
- * and allocate them only once across the whole dependency graph.
+ * Shared singletons.
  */
+const SharedAppConfigLive = AppConfigLive
 const SharedTelemetryRepositoryLive = TelemetryRepositoryLive
-const SharedDeviceStatusRepositoryLive = DeviceStatusRepositoryLive
-const SharedAlertServiceLive = AlertServiceLive
 const SharedAzurePublisherLive = AzurePublisherMockLive
 
-// First, build the dependencies TelemetryProcessor needs
+/**
+ * Alert service depends on AppConfig.
+ */
+const SharedAlertServiceLive = Layer.provide(
+  AlertServiceLive,
+  SharedAppConfigLive
+)
+
+/**
+ * DeviceStatusRepository depends on AppConfig.
+ */
+const SharedDeviceStatusRepositoryLive = Layer.provide(
+  DeviceStatusRepositoryLive,
+  SharedAppConfigLive
+)
+
+/**
+ * TelemetryProcessor depends on:
+ * - TelemetryRepository
+ * - AlertService
+ */
 const ProcessorDepsLive = Layer.mergeAll(
   SharedTelemetryRepositoryLive,
   SharedAlertServiceLive
 )
 
-// Then provide those deps into TelemetryProcessorLive
 const WiredTelemetryProcessorLive = Layer.provide(
   TelemetryProcessorLive,
   ProcessorDepsLive
 )
 
-
-// Dependencies required to build the API server
+/**
+ * ApiServer depends on:
+ * - DeviceStatusRepository
+ * - TelemetryRepository
+ * - AppConfig
+ */
 const ApiDepsLive = Layer.mergeAll(
+  SharedDeviceStatusRepositoryLive,
   SharedTelemetryRepositoryLive,
-  SharedDeviceStatusRepositoryLive
+  SharedAppConfigLive
 )
 
-// Wire API dependencies into the API layer
 const WiredApiServerLive = Layer.provide(
   ApiServerLive,
   ApiDepsLive
 )
 
-// Merge the independent services into the app layer
 export const LiveServices = Layer.mergeAll(
   DeviceSimulatorLive,
+  SharedAppConfigLive,
   SharedTelemetryRepositoryLive,
   SharedDeviceStatusRepositoryLive,
   SharedAlertServiceLive,
