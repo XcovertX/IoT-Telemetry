@@ -6,10 +6,21 @@ import { AlertServiceLive } from "../services/AlertService.js"
 import { DeviceStatusRepositoryLive } from "../services/DeviceStatusRepository.js"
 import { ApiServerLive } from "../services/ApiServer.js"
 
+/**
+ * Shared singleton-style infrastructure layers.
+ *
+ * Important:
+ * Reuse these exact layer values so Effect can memoize them
+ * and allocate them only once across the whole dependency graph.
+ */
+const SharedTelemetryRepositoryLive = TelemetryRepositoryLive
+const SharedDeviceStatusRepositoryLive = DeviceStatusRepositoryLive
+const SharedAlertServiceLive = AlertServiceLive
+
 // First, build the dependencies TelemetryProcessor needs
 const ProcessorDepsLive = Layer.mergeAll(
-  TelemetryRepositoryLive,
-  AlertServiceLive
+  SharedTelemetryRepositoryLive,
+  SharedAlertServiceLive
 )
 
 // Then provide those deps into TelemetryProcessorLive
@@ -21,8 +32,8 @@ const WiredTelemetryProcessorLive = Layer.provide(
 
 // Dependencies required to build the API server
 const ApiDepsLive = Layer.mergeAll(
-  TelemetryRepositoryLive,
-  DeviceStatusRepositoryLive
+  SharedTelemetryRepositoryLive,
+  SharedDeviceStatusRepositoryLive
 )
 
 // Wire API dependencies into the API layer
@@ -34,8 +45,9 @@ const WiredApiServerLive = Layer.provide(
 // Merge the independent services into the app layer
 export const LiveServices = Layer.mergeAll(
   DeviceSimulatorLive,
-  ProcessorDepsLive,
+  SharedTelemetryRepositoryLive,
+  SharedDeviceStatusRepositoryLive,
+  SharedAlertServiceLive,
   WiredTelemetryProcessorLive,
-  DeviceStatusRepositoryLive,
-WiredApiServerLive
+  WiredApiServerLive
 )
