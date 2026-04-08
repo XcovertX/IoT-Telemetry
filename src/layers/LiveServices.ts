@@ -5,6 +5,7 @@ import { TelemetryRepositoryLive } from "../services/TelemetryRepository.js"
 import { AlertServiceLive } from "../services/AlertService.js"
 import { DeviceStatusRepositoryLive } from "../services/DeviceStatusRepository.js"
 import { ApiServerLive } from "../services/ApiServer.js"
+import { AzurePublisherMockLive } from "../services/AzurePublisher.js"
 
 /**
  * Shared singleton-style infrastructure layers.
@@ -16,6 +17,7 @@ import { ApiServerLive } from "../services/ApiServer.js"
 const SharedTelemetryRepositoryLive = TelemetryRepositoryLive
 const SharedDeviceStatusRepositoryLive = DeviceStatusRepositoryLive
 const SharedAlertServiceLive = AlertServiceLive
+const SharedAzurePublisherLive = AzurePublisherMockLive
 
 // First, build the dependencies TelemetryProcessor needs
 const ProcessorDepsLive = Layer.mergeAll(
@@ -48,6 +50,7 @@ export const LiveServices = Layer.mergeAll(
   SharedTelemetryRepositoryLive,
   SharedDeviceStatusRepositoryLive,
   SharedAlertServiceLive,
+  SharedAzurePublisherLive,
   WiredTelemetryProcessorLive,
   WiredApiServerLive
 )
