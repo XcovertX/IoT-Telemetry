@@ -1,11 +1,12 @@
 import { Context, Effect, Layer, Console } from "effect"
 import type { Telemetry } from "../domain/Telemetry.js"
 import { TelemetryValidationError } from "../errors/TelemetryError.js"
+import { TelemetryRepository } from "./TelemetryRepository.js"
+import { AlertService } from "./AlertService.js"
 
-
-// service definition for processing telemetry data
-// Context.Tag creates a dependency that defines what the service does
-// consumers request this service with: const processor = yield* TelemetryProcessor
+/**
+ * Processes telemetry through the pipeline
+ */
 export class TelemetryProcessor extends Context.Tag("TelemetryProcessor")<
   TelemetryProcessor,
   {
@@ -15,37 +16,53 @@ export class TelemetryProcessor extends Context.Tag("TelemetryProcessor")<
   }
 >() {}
 
-export const TelemetryProcessorLive = Layer.succeed(
+/**
+ * Build the service from its dependencies.
+ * Because this implementation depends on TelemetryRepository and AlertService,
+ * we use Layer.effect instead of Layer.succeed.
+ */
+export const TelemetryProcessorLive = Layer.effect(
   TelemetryProcessor,
-  TelemetryProcessor.of({
-    process: (telemetry) =>
-      Effect.gen(function* () {
-        // validation, check that telemetry values are within expected ranges
-        if (telemetry.temperatureF < 32 || telemetry.temperatureF > 180) {
-          return yield* Effect.fail(
-            new TelemetryValidationError("temperature out of expected range")
-          )
-        }
-        // validation, check that telemetry values are within expected ranges
-        if (telemetry.flowRateGpm < 0) {
-          return yield* Effect.fail(
-            new TelemetryValidationError("flow rate cannot be negative")
-          )
-        }
+  Effect.gen(function* () {
+    // Resolve dependencies once when constructing the service
+    const repo = yield* TelemetryRepository
+    const alerts = yield* AlertService
 
-        // log the processed telemetry data
-        yield* Console.log(
-        "[INFO] " +
-          JSON.stringify({
-            level: "info",
-            msg: "processed telemetry",
-            deviceId: telemetry.deviceId,
-            temperatureF: telemetry.temperatureF,
-            flowRateGpm: telemetry.flowRateGpm,
-            batteryPercent: telemetry.batteryPercent,
-            timestamp: telemetry.timestamp
-          })
-        )
-      })
+    return TelemetryProcessor.of({
+      process: (telemetry) =>
+        Effect.gen(function* () {
+          // Validate telemetry
+          if (telemetry.temperatureF < 32 || telemetry.temperatureF > 180) {
+            return yield* Effect.fail(
+              new TelemetryValidationError(
+                `Temperature out of range for ${telemetry.deviceId}`
+              )
+            )
+          }
+
+          if (telemetry.flowRateGpm < 0) {
+            return yield* Effect.fail(
+              new TelemetryValidationError(
+                `Negative flow rate for ${telemetry.deviceId}`
+              )
+            )
+          }
+
+          // Log structured telemetry
+          yield* Console.log(
+            JSON.stringify({
+              level: "info",
+              msg: "processed telemetry",
+              ...telemetry
+            })
+          )
+
+          // Save to repository
+          yield* repo.save(telemetry)
+
+          // Evaluate alerts
+          yield* alerts.evaluate(telemetry)
+        })
+    })
   })
 )

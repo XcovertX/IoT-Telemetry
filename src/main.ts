@@ -54,5 +54,11 @@ const program = Effect.gen(function* () {
   Effect.provide(LiveServices)
 )
 
+
 // run the program
-Effect.runPromise(program)
+Effect.runPromise(
+  program.pipe(
+    // Provide any missing services from LiveServices
+    Effect.provide(LiveServices)
+  )
+)
