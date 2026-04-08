@@ -3,6 +3,7 @@ import { DeviceSimulator } from "./services/DeviceSimulator.js"
 import { TelemetryProcessor } from "./services/TelemetryProcessor.js"
 import { ApiServer } from "./services/ApiServer.js"
 import { DeviceStatusRepository } from "./services/DeviceStatusRepository.js"
+import { AzurePublisher } from "./services/AzurePublisher.js"
 import { LiveServices } from "./layers/LiveServices.js"
 import {
   DeviceOfflineError,
@@ -20,19 +21,45 @@ const pollDevice = (deviceId: string) =>
   Effect.gen(function* () {
     const simulator = yield* DeviceSimulator
     const processor = yield* TelemetryProcessor
-
+    const statusRepo = yield* DeviceStatusRepository
+    const azurePublisher = yield* AzurePublisher
     const telemetry = yield* simulator.readTelemetry(deviceId)
+    
+    // Local processing first
     yield* processor.process(telemetry)
+    // Then publish to Azure
+    yield* azurePublisher.publishTelemetry(telemetry).pipe(
+      // Treat cloud publish as transient/retriable
+      Effect.retry(Schedule.recurs(2))
+    )
+    // Successful end-to-end poll
+    yield* statusRepo.markOnline(deviceId, telemetry.timestamp)
   }).pipe(
-    // retry policy: retry up to 2 times on failure
-    Effect.retry(Schedule.recurs(2)), 
-    // handle specific error cases
-    Effect.catchTags({
-      DeviceOfflineError: (error: DeviceOfflineError) =>
-        Console.log(`[WARN] ${error.message}`),
-      TelemetryValidationError: (error: TelemetryValidationError) =>
-        Console.log(`[WARN] ${error.message}`)
-    })
+    Effect.retry(Schedule.recurs(2)),
+    Effect.catchTag("DeviceOfflineError", (error: DeviceOfflineError) =>
+      Effect.gen(function* () {
+        const statusRepo = yield* DeviceStatusRepository
+        yield* statusRepo.markFailure(deviceId, error.message)
+        yield* Console.log(`[WARN] ${error.message}`)
+      })
+    ),
+    Effect.catchTag("TelemetryValidationError", (error: TelemetryValidationError) =>
+      Effect.gen(function* () {
+        const statusRepo = yield* DeviceStatusRepository
+        yield* statusRepo.markFailure(deviceId, error.message)
+        yield* Console.log(`[WARN] ${error.message}`)
+      })
+    ),
+    Effect.catchAll((error) =>
+      Effect.gen(function* () {
+        const statusRepo = yield* DeviceStatusRepository
+        const errorMessage = typeof error === "object" && error !== null && "message" in error
+          ? (error as { message: string }).message
+          : String(error)
+        yield* statusRepo.markFailure(deviceId, errorMessage)
+        yield* Console.log(`[WARN] Azure publish failed for ${deviceId}: ${errorMessage}`)
+      })
+    )
   )
 
 // polls devices concurrently rather than one-by-one

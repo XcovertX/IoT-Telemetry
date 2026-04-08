@@ -11,7 +11,7 @@ import type { Telemetry } from "../domain/Telemetry.js"
 export class AzurePublisher extends Context.Tag("AzurePublisher")<
   AzurePublisher,
   {
-    readonly publishTelemetry: (telemetry: Telemetry) => Effect.Effect<void, Error>
+    readonly publishTelemetry: (telemetry: Telemetry) => Effect.Effect<void>
   }
 >() {}
 
@@ -27,16 +27,10 @@ export const AzurePublisherMockLive = Layer.succeed(
   AzurePublisher,
   AzurePublisher.of({
     publishTelemetry: (telemetry) =>
-      Effect.gen(function* () {
-        yield* Console.log(
-          `[AZURE MOCK] Publishing telemetry for ${telemetry.deviceId}: ${JSON.stringify(
-            telemetry
-          )}`
-        )
-      }).pipe(
-        Effect.mapError((error: unknown) =>
-          error instanceof Error ? error : new Error(String(error))
-        )
+      Console.log(
+        `[AZURE MOCK] Publishing telemetry for ${telemetry.deviceId}: ${JSON.stringify(
+          telemetry
+        )}`
       )
   })
 )
