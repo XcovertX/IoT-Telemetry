@@ -21,7 +21,8 @@
   },
   "homepage": "https://github.com/XcovertX/IoT-Telemetry#readme",
   "dependencies": {
-    "effect": "^3.21.0"
+    "effect": "^3.21.0",
+    "fastify": "^5.8.4"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
