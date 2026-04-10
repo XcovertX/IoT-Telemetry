@@ -7,6 +7,7 @@ import { DeviceStatusRepository } from "./services/DeviceStatusRepository.js"
 import { ApiServer } from "./services/ApiServer.js"
 import { AzurePublisher } from "./services/AzurePublisher.js"
 import { LiveServices } from "./layers/LiveServices.js"
+import { AzurePublishError } from "./errors/AzureError.js"
 import {
   DeviceOfflineError,
   TelemetryValidationError
@@ -44,6 +45,13 @@ const pollDevice = (deviceId: string) =>
         const statusRepo = yield* DeviceStatusRepository
         yield* statusRepo.markFailure(deviceId, error.message)
         yield* Console.log(`[WARN] ${error.message}`)
+      })
+    ),
+    Effect.catchTag("AzurePublishError", (error) =>
+    Effect.gen(function* () {
+        const statusRepo = yield* DeviceStatusRepository
+        yield* statusRepo.markFailure(deviceId, error.message)
+        yield* Console.log(`[WARN] Azure publish failed for ${deviceId}: ${error.message}`)
       })
     )
   )

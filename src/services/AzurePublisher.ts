@@ -1,27 +1,20 @@
-import { Context, Effect, Layer, Console } from "effect"
+import { Config, Context, Effect, Layer, Console } from "effect"
+import { Client, Message } from "azure-iot-device"
+import { Mqtt } from "azure-iot-device-mqtt"
 import type { Telemetry } from "../domain/Telemetry.js"
+import { AzurePublishError } from "../errors/AzureError.js"
 
-/**
- * Service contract for publishing telemetry to Azure.
- *
- * Right now this is just a mock implementation.
- * Later, swap the live layer for a real Azure IoT Hub implementation
- * without changing the rest of the application.
- */
 export class AzurePublisher extends Context.Tag("AzurePublisher")<
   AzurePublisher,
   {
-    readonly publishTelemetry: (telemetry: Telemetry) => Effect.Effect<void>
+    readonly publishTelemetry: (
+      telemetry: Telemetry
+    ) => Effect.Effect<void, AzurePublishError>
   }
 >() {}
 
 /**
- * Mock Azure implementation.
- *
- * For now, this just logs the telemetry payload so we can prove that:
- * - the service is wired correctly
- * - publishing is happening at the right place in the workflow
- * - the app is ready for a real Azure adapter later
+ * Mock implementation
  */
 export const AzurePublisherMockLive = Layer.succeed(
   AzurePublisher,
@@ -31,6 +24,53 @@ export const AzurePublisherMockLive = Layer.succeed(
         `[AZURE MOCK] Publishing telemetry for ${telemetry.deviceId}: ${JSON.stringify(
           telemetry
         )}`
+      ).pipe(
+        Effect.mapError(
+          (error: unknown) =>
+            new AzurePublishError({
+              message: error instanceof Error ? error.message : String(error)
+            })
+        )
       )
+  })
+)
+
+/**
+ * Real Azure IoT Hub implementation
+ */
+export const AzurePublisherIoTHubLive = Layer.effect(
+  AzurePublisher,
+  Effect.gen(function* () {
+    const connectionString = yield* Config.string(
+      "AZURE_IOT_DEVICE_CONNECTION_STRING"
+    )
+
+    const client = Client.fromConnectionString(connectionString, Mqtt)
+
+    yield* Effect.tryPromise({
+      try: () => client.open(),
+      catch: (error) =>
+        new AzurePublishError({
+          message:
+            error instanceof Error ? error.message : String(error)
+        })
+    })
+
+    return AzurePublisher.of({
+      publishTelemetry: (telemetry) =>
+        Effect.tryPromise({
+          try: async () => {
+            const message = new Message(JSON.stringify(telemetry))
+            message.contentType = "application/json"
+            message.contentEncoding = "utf-8"
+            await client.sendEvent(message)
+          },
+          catch: (error) =>
+            new AzurePublishError({
+              message:
+                error instanceof Error ? error.message : String(error)
+            })
+        })
+    })
   })
 )

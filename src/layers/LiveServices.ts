@@ -8,18 +8,15 @@ import { DeviceStatusRepositoryLive } from "../services/DeviceStatusRepository.j
 import { ApiServerLive } from "../services/ApiServer.js"
 import { AzurePublisherMockLive } from "../services/AzurePublisher.js"
 import { DeviceCommandServiceMockLive } from "../services/DeviceCommandService.js"
+import { CommandHistoryRepositoryLive } from "../services/CommandHistoryRepository.js"
+import { AzurePublisherIoTHubLive } from "../services/AzurePublisher.js"
 
-/**
- * Shared singleton-style layers
- */
+const SharedAzurePublisherLive = AzurePublisherIoTHubLive
 const SharedAppConfigLive = AppConfigLive
 const SharedTelemetryRepositoryLive = TelemetryRepositoryLive
-const SharedAzurePublisherLive = AzurePublisherMockLive
-const SharedDeviceCommandServiceLive = DeviceCommandServiceMockLive
+const SharedCommandHistoryRepositoryLive = CommandHistoryRepositoryLive
 
-/**
- * Services that depend on config
- */
+
 const SharedAlertServiceLive = Layer.provide(
   AlertServiceLive,
   SharedAppConfigLive
@@ -30,11 +27,14 @@ const SharedDeviceStatusRepositoryLive = Layer.provide(
   SharedAppConfigLive
 )
 
-/**
- * TelemetryProcessor depends on:
- * - TelemetryRepository
- * - AlertService
- */
+const SharedDeviceCommandServiceLive = Layer.provide(
+  DeviceCommandServiceMockLive,
+  Layer.mergeAll(
+    SharedDeviceStatusRepositoryLive,
+    SharedCommandHistoryRepositoryLive
+  )
+)
+
 const ProcessorDepsLive = Layer.mergeAll(
   SharedTelemetryRepositoryLive,
   SharedAlertServiceLive
@@ -45,17 +45,11 @@ const WiredTelemetryProcessorLive = Layer.provide(
   ProcessorDepsLive
 )
 
-/**
- * ApiServer depends on:
- * - DeviceStatusRepository
- * - TelemetryRepository
- * - DeviceCommandService
- * - AppConfig
- */
 const ApiDepsLive = Layer.mergeAll(
   SharedDeviceStatusRepositoryLive,
   SharedTelemetryRepositoryLive,
   SharedDeviceCommandServiceLive,
+  SharedCommandHistoryRepositoryLive,
   SharedAppConfigLive
 )
 
@@ -71,6 +65,7 @@ export const LiveServices = Layer.mergeAll(
   SharedDeviceStatusRepositoryLive,
   SharedAlertServiceLive,
   SharedAzurePublisherLive,
+  SharedCommandHistoryRepositoryLive,
   SharedDeviceCommandServiceLive,
   WiredTelemetryProcessorLive,
   WiredApiServerLive

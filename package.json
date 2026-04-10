@@ -21,6 +21,8 @@
   },
   "homepage": "https://github.com/XcovertX/IoT-Telemetry#readme",
   "dependencies": {
+    "azure-iot-device": "^1.18.4",
+    "azure-iot-device-mqtt": "^1.16.4",
     "dotenv": "^17.4.1",
     "effect": "^3.21.0",
     "fastify": "^5.8.4"

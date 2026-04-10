@@ -14,6 +14,7 @@ export class DeviceStatusRepository extends Context.Tag("DeviceStatusRepository"
   {
     readonly markOnline: (deviceId: string, timestamp: number) => Effect.Effect<void>
     readonly markFailure: (deviceId: string, error: string) => Effect.Effect<void>
+    readonly markDegraded: (deviceId: string, reason: string) => Effect.Effect<void>
     readonly get: (deviceId: string) => Effect.Effect<DeviceStatus | undefined>
     readonly getAll: () => Effect.Effect<ReadonlyArray<DeviceStatus>>
   }
@@ -53,6 +54,22 @@ export const DeviceStatusRepositoryLive = Layer.effect(
             lastSeenAt: existing?.lastSeenAt,
             lastError: error,
             consecutiveFailures: failures
+          })
+
+          return next
+        }),
+
+      markDegraded: (deviceId, reason) =>
+        Ref.update(store, (map) => {
+          const next = new Map(map)
+          const existing = next.get(deviceId)
+
+          next.set(deviceId, {
+            deviceId,
+            status: "degraded",
+            lastSeenAt: existing?.lastSeenAt,
+            lastError: reason,
+            consecutiveFailures: existing?.consecutiveFailures ?? 0
           })
 
           return next

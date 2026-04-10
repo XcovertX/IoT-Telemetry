@@ -1,14 +1,9 @@
 import { Context, Effect, Layer, Console } from "effect"
+import { DeviceStatusRepository } from "./DeviceStatusRepository.js"
+import { CommandHistoryRepository } from "./CommandHistoryRepository.js"
 
-/**
- * Supported device commands for now.
- * We only implement reboot as a mock command.
- */
 export type DeviceCommand = "reboot"
 
-/**
- * Service contract for sending commands to devices.
- */
 export class DeviceCommandService extends Context.Tag("DeviceCommandService")<
   DeviceCommandService,
   {
@@ -19,18 +14,32 @@ export class DeviceCommandService extends Context.Tag("DeviceCommandService")<
   }
 >() {}
 
-/**
- * Mock command implementation.
- *
- * Later this could become:
- * - Azure direct methods
- * - MQTT command publish
- * - REST call to edge gateway
- */
-export const DeviceCommandServiceMockLive = Layer.succeed(
+export const DeviceCommandServiceMockLive = Layer.effect(
   DeviceCommandService,
-  DeviceCommandService.of({
-    sendCommand: (deviceId, command) =>
-      Console.log(`[COMMAND MOCK] Sending '${command}' to ${deviceId}`)
+  Effect.gen(function* () {
+    const statusRepo = yield* DeviceStatusRepository
+    const historyRepo = yield* CommandHistoryRepository
+
+    return DeviceCommandService.of({
+      sendCommand: (deviceId, command) =>
+        Effect.gen(function* () {
+          const timestamp = Date.now()
+
+          yield* Console.log(`[COMMAND MOCK] Sending '${command}' to ${deviceId}`)
+
+          // Record the command so the effect is visible in the API
+          yield* historyRepo.add({
+            deviceId,
+            command,
+            timestamp,
+            status: "accepted"
+          })
+
+          // Update device status so the effect is visible immediately
+          if (command === "reboot") {
+            yield* statusRepo.markDegraded(deviceId, "reboot requested")
+          }
+        })
+    })
   })
 )

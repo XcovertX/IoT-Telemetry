@@ -28,7 +28,6 @@ export const DeviceSimulatorLive = Layer.succeed(
       Effect.gen(function* () {
         const roll = Math.random() // random number between 0 and 1
 
-
         // 20% chance the device is offline
         if (roll < 0.2) {
           return yield* Effect.fail(new DeviceOfflineError(deviceId))
